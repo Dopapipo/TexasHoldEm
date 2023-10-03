@@ -17,7 +17,6 @@ import logic.WinConditionLogic;
 //Implement blind system (partially done, need to start using it now)
 //Implement increasing blinds every x turns
 
-
 public class PokerTable {
 	private ArrayList<Player> playerList;
 	private ArrayList<Player> currentlyPlaying;
@@ -30,8 +29,8 @@ public class PokerTable {
 	private Blind donor;
 	private final int defaultBlind = 5;
 	Scanner scanner = new Scanner(System.in);
-	
-	//Pot implementation start
+
+	// Pot implementation start
 	ArrayList<Pot> pots;
 
 	public PokerTable() {
@@ -70,16 +69,18 @@ public class PokerTable {
 		// last player at the table will be first big blind, the one before him
 		// will be small blind, and the one before that will be donor.
 		// if there's only two players, one player will always be donor and small blind.
-		this.bigBlind = new Blind(this.defaultBlind, this.currentlyPlaying.get(n - 1));
-		this.smallBlind = new Blind(this.defaultBlind / 2, this.currentlyPlaying.get(n - 2));
-		this.donor = new Blind(0, this.currentlyPlaying.get(Math.max(0, n - 3)));
+		if (this.bigBlind == null) {
+			this.bigBlind = new Blind(this.defaultBlind, this.currentlyPlaying.get(n - 1));
+			this.smallBlind = new Blind(this.defaultBlind / 2, this.currentlyPlaying.get(n - 2));
+			this.donor = new Blind(0, this.currentlyPlaying.get(Math.max(0, n - 3)));
+		}
 
 	}
 
 	public void switchBlinds() {
 		int n = this.currentlyPlaying.size();
 		int bigBlindIndex = 0, smallBlindIndex = 0, donorIndex = 0;
-		//find the index of players that hold the blinds
+		// find the index of players that hold the blinds
 		for (int i = 0; i < n; i++) {
 			if (this.currentlyPlaying.get(i) == this.bigBlind.getPlayer()) {
 				bigBlindIndex = i;
@@ -89,11 +90,11 @@ public class PokerTable {
 				donorIndex = i;
 			}
 		}
-		//increment the blinds mod n (if last player has blind, it goes to the first)
+		// increment the blinds mod n (if last player has blind, it goes to the first)
 		bigBlindIndex = (bigBlindIndex + 1) % n;
 		smallBlindIndex = (smallBlindIndex + 1) % n;
 		donorIndex = (donorIndex + 1) % n;
-		//set players to the blinds
+		// set players to the blinds
 		this.bigBlind.setPlayer(this.currentlyPlaying.get(bigBlindIndex));
 		this.smallBlind.setPlayer(this.currentlyPlaying.get(smallBlindIndex));
 		this.donor.setPlayer(this.currentlyPlaying.get(donorIndex));
@@ -127,17 +128,17 @@ public class PokerTable {
 	/**
 	 * Asks players to raise,call,or fold. Need to implement big blind small blind.
 	 */
-	public void askForBets() {
+	public int askForBets(int playersInRound) {
 		boolean everyoneCalled = false;
 		// Implementation of support for constant raising : while
 		// not everyone has called/folded (i.e. there's still a player raising)
 		// We ask every other player for a call/fold/raise
 		ArrayList<Boolean> playersCalled = new ArrayList<>();
-		//A round is basic,turn,flop,river,finish, so need to pass this
-		//variable playersInRound inbetween askForBets calls or the function
-		//will keep asking a player for raise call fold even tho he's the only
-		//one who hasn't folded. (TODO)
-		int playersInRound = currentlyPlaying.size();
+		// A round is basic,turn,flop,river,finish, so need to pass this
+		// variable playersInRound inbetween askForBets calls or the function
+		// will keep asking a player for raise call fold even tho he's the only
+		// one who hasn't folded. (TODO)
+
 		while (!everyoneCalled) {
 			playersCalled.clear();
 			for (Player player : this.currentlyPlaying) {
@@ -160,12 +161,10 @@ public class PokerTable {
 					case 1:
 						player.call(this.highestBet - player.getBet());
 						player.setCurrentlyRaising(false);
-						playersCalled.add(true);
 						break;
 					case 2:
 						player.fold();
 						player.setCurrentlyRaising(false);
-						playersCalled.add(true);
 						playersInRound--;
 						break;
 					// if a player raises, we set him to currently raising, and all the other
@@ -175,13 +174,12 @@ public class PokerTable {
 						int x = scanner.nextInt();
 						if (x > 0) {
 							this.highestBet = player.bet(highestBet - player.getBet() + x);
-							player.setCurrentlyRaising((true));
-							for (Player aPlayer : this.currentlyPlaying)
+							for (Player aPlayer : this.currentlyPlaying) {
 								// we shouldn't have any weird behaviour
 								// if we use != for comparison, at least for now
-								if (aPlayer != player) {
-									aPlayer.setCurrentlyRaising(false);
-								}
+								aPlayer.setCurrentlyRaising(false);
+							}
+							player.setCurrentlyRaising((true));
 							playersCalled.add(false);
 						} else {
 							player.call(this.highestBet - player.getBet());
@@ -194,14 +192,18 @@ public class PokerTable {
 				if (player.isAllIn()) {
 					playersInRound--;
 				}
+				this.findHighestBet();
 			}
 			everyoneCalled = true;
 			for (Boolean playerCalled : playersCalled) {
-				everyoneCalled = everyoneCalled && playerCalled;
+				if (!playerCalled) {
+					everyoneCalled = false;
+				}
 			}
 		}
 		// reset player raise state for next dealer card
 		this.resetPlayers();
+		return playersInRound;
 	}
 
 	public ArrayList<Player> checkWhoWins() {
@@ -269,6 +271,7 @@ public class PokerTable {
 		kickBrokePlayers();
 		deck.resetDeck();
 		dealer.clear();
+		this.switchBlinds();
 		this.highestBet = 0;
 
 	}
@@ -279,18 +282,35 @@ public class PokerTable {
 		}
 	}
 
+	public void askBlindPayment() {
+		this.bigBlind.getPlayer().bet(this.bigBlind.getValue());
+		this.smallBlind.getPlayer().bet(this.smallBlind.getValue());
+	}
+
+	public void findHighestBet() {
+		for (Player player : this.currentlyPlaying) {
+			if (player.getBet() > this.highestBet) {
+				this.highestBet = player.getBet();
+			}
+		}
+	}
+
 	public void startTurn() {
 		this.giveCards();
-		this.askForBets();
+		this.initializeBlinds();
+		this.askBlindPayment();
+		this.findHighestBet();
+		int playersInRound = currentlyPlaying.size();
+		playersInRound = this.askForBets(playersInRound);
 		dealer.flop();
 		dealer.printHand();
-		this.askForBets();
+		playersInRound = this.askForBets(playersInRound);
 		dealer.turn();
 		dealer.printHand();
-		this.askForBets();
+		playersInRound = this.askForBets(playersInRound);
 		dealer.river();
 		dealer.printHand();
-		this.askForBets();
+		playersInRound = this.askForBets(playersInRound);
 		this.calculateTotalPot();
 		this.endTurn(this.checkWhoWins());
 

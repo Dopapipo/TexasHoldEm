@@ -23,4 +23,8 @@ public class Blind {
 	public void setPlayer(Player player) {
 		this.player = player;
 	}
+	
+	public String toString() {
+		return this.player.getName() + " has to pay a blind of " + this.value;
+	}
 }

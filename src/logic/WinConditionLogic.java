@@ -17,8 +17,8 @@ import classes.WinningCombination;
 public class WinConditionLogic {
 
 	/**
-	 * Finds the highest <WinningCombination> for a hand. Will be used on any hand of
-	 * length >=2 (by default each player gets 2 cards.)
+	 * Finds the highest <WinningCombination> for a hand. Will be used on any hand
+	 * of length >=2 (by default each player gets 2 cards.)
 	 * 
 	 * @param dealerHand : The dealerHand is updated after the turn,river and flop
 	 * @param playerHand : The playerHand is updated when cards are dealt
